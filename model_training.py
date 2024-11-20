@@ -29,7 +29,7 @@ def test_small_training(save=True):
         with open(to_save_location, 'wb') as f:
             torch.save(model, f)
 
-def full_scale_training(save=False):
+def full_scale_training(save=False, seed=0):
     num_layers=8
     d_model=512
     n_heads=8
@@ -37,13 +37,13 @@ def full_scale_training(save=False):
 
     train_corpus="gpt_train"
     eval_corpus="gpt_test"
-    batch_size=64
-    report_every_n_steps=500
-    num_epochs=2
+    batch_size=128
+    report_every_n_steps=1000
+    num_epochs=6
     model=othello_gpt.OthelloGPT(num_layers=num_layers, d_model=d_model, n_heads=n_heads, window_length=window_length)
-    train_model(model, train_dataset_type=train_corpus, eval_dataset_type=eval_corpus, num_epochs=num_epochs, report_every_n_steps=report_every_n_steps, batch_size=batch_size)
+    train_model(model, train_dataset_type=train_corpus, eval_dataset_type=eval_corpus, num_epochs=num_epochs, report_every_n_steps=report_every_n_steps, batch_size=batch_size, fixed_seed=seed)
     
-    to_save_location="trained_model_test.pkl"
+    to_save_location=f"trained_model_full_{seed}.pkl"
     if save:
         with open(to_save_location, 'wb') as f:
             torch.save(model, f)
@@ -178,15 +178,17 @@ def full_probe_run(target_layer, save=True):
 
 if __name__ == '__main__':
     # test_small_training(save=True)
-
-    full_scale_training(save=True)
-
+    
+    full_scale_training(save=True, seed=9999) # 96.76
+    full_scale_training(save=True, seed=114514) # 97.05
+    full_scale_training(save=True, seed=20040805) # 96.72
+    
     # test_unpickle()
 
     # test_sae_training(target_layer=6)
     # sae_hyperparameter_sweep(6)
-    full_probe_run(target_layer=6)
-    full_sae_training(target_layer=6, save=True)
+    # full_probe_run(target_layer=6)
+    # full_sae_training(target_layer=6, save=True)
 
     # test_linear_probes(6)
     # for n in range(1, 9):
