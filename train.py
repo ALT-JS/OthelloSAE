@@ -16,7 +16,6 @@ def train_model(model, train_dataset_type, eval_dataset_type, batch_size=64, num
         model.train()
         optimizer=torch.optim.AdamW(model.parameters(), lr=1e-3)
         scheduler = CosineAnnealingLR(optimizer, T_max=10, eta_min=1e-6)
-        scheduler.step()
         step=0
         print(f"Beginning model training on {device}!")
 
@@ -34,4 +33,5 @@ def train_model(model, train_dataset_type, eval_dataset_type, batch_size=64, num
                 if step % report_every_n_steps==0:
                     model.print_evaluation(loss, eval_dataset_type, step_number=step)
     else:
+        loss = torch.zeros(1)
         model.print_evaluation(train_loss=loss, eval_dataset_type=eval_dataset_type, step_number="Omega", details=True)

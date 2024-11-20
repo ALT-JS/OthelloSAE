@@ -147,6 +147,7 @@ analysis_results/
 probes/
 saes/
 *.pkl
+*.png
 
 # shit
 .DS_Store
