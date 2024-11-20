@@ -146,8 +146,7 @@ neel-plotly/
 analysis_results/
 probes/
 saes/
-trained_model_full.pkl
-trained_model_test.pkl
+*.pkl
 
 # shit
 .DS_Store
