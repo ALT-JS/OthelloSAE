@@ -29,7 +29,7 @@ def test_small_training(save=True):
         with open(to_save_location, 'wb') as f:
             torch.save(model, f)
 
-def full_scale_training(save=False):
+def full_scale_training(save=False, seed=0):
     num_layers=8
     d_model=512
     n_heads=8
@@ -37,13 +37,13 @@ def full_scale_training(save=False):
 
     train_corpus="gpt_train"
     eval_corpus="gpt_test"
-    batch_size=64
-    report_every_n_steps=500
-    num_epochs=2
+    batch_size=128
+    report_every_n_steps=1000
+    num_epochs=6
     model=othello_gpt.OthelloGPT(num_layers=num_layers, d_model=d_model, n_heads=n_heads, window_length=window_length)
-    train_model(model, train_dataset_type=train_corpus, eval_dataset_type=eval_corpus, num_epochs=num_epochs, report_every_n_steps=report_every_n_steps, batch_size=batch_size)
+    train_model(model, train_dataset_type=train_corpus, eval_dataset_type=eval_corpus, num_epochs=num_epochs, report_every_n_steps=report_every_n_steps, batch_size=batch_size, fixed_seed=seed)
     
-    to_save_location="trained_model_test.pkl"
+    to_save_location=f"trained_model_full_{seed}.pkl"
     if save:
         with open(to_save_location, 'wb') as f:
             torch.save(model, f)
@@ -136,6 +136,33 @@ def sae_hyperparameter_sweep(target_layer):
             f.write(f"Training autoencoder with sparsity coefficient {sparsity_coeff}\n")
         train_model(sparse_autoencoder, train_dataset_type=train_corpus, eval_dataset_type=eval_corpus, num_epochs=num_epochs, report_every_n_steps=report_every_n_steps, batch_size=batch_size)
 
+def test_diff_probes(othellogpt_layer, probe_layer, seed = 9999):
+        
+    trained_model_location=f"trained_model_full_{seed}.pkl"
+    with open(trained_model_location, 'rb') as f:
+        language_model=torch.load(f, map_location=device)
+    
+    probe_model_location = f"probes/probe_layer_{probe_layer}_{seed}_trimmed.pkl"
+    with open(probe_model_location, 'rb') as f:
+        probe_model=torch.load(f, map_location=device)
+        
+    num_epochs=1
+    report_every_n_steps=10
+    batch_size=16
+    train_corpus="probe_train_small"
+    eval_corpus="probe_test"
+    window_start=1
+    window_end=1
+
+    language_model.state_dict()[f'classifier.0.weight'] = probe_model[f'classifier.0.weight']
+    language_model.state_dict()[f'classifier.1.weight'] = probe_model[f'classifier.1.weight']
+    language_model.state_dict()[f'classifier.2.weight'] = probe_model[f'classifier.2.weight']
+    
+    language_model = language_model.to(device)
+    
+    linear_probe_model=linear_probes.LinearProbe(language_model, layer_num=othellogpt_layer, window_start_trim=window_start, window_end_trim=window_end).cuda()
+    train_model(linear_probe_model, train_dataset_type=train_corpus, eval_dataset_type=eval_corpus, num_epochs=num_epochs, report_every_n_steps=report_every_n_steps, batch_size=batch_size, fixed_seed=False)
+    
 
 def test_linear_probes(target_layer, save=True):
     trained_model_location="trained_model_test.pkl"
@@ -156,37 +183,46 @@ def test_linear_probes(target_layer, save=True):
         with open(to_save_location, 'wb') as f:
             torch.save(linear_probe_model, f)
 
-def full_probe_run(target_layer, save=True):
-    trained_model_location="trained_model_full.pkl"
+def full_probe_run(target_layer, save=True, trained_model_location="trained_model_full.pkl"):
     with open(trained_model_location, 'rb') as f:
         language_model=torch.load(f, map_location=device)
+    
+    id = trained_model_location.split('_')[-1][:-4]
     num_epochs=1
-    report_every_n_steps=100
+    report_every_n_steps=2000
     batch_size=64
     train_corpus="probe_train"
     eval_corpus="probe_test"
     window_start=4
     window_end=8
     linear_probe_model=linear_probes.LinearProbe(language_model, layer_num=target_layer, window_start_trim=window_start, window_end_trim=window_end)
-    # print(num_epochs, batch_size, report_every_n_steps)
+    print(num_epochs, batch_size, report_every_n_steps)
     train_model(linear_probe_model, train_dataset_type=train_corpus, eval_dataset_type=eval_corpus, num_epochs=num_epochs, report_every_n_steps=report_every_n_steps, batch_size=batch_size)
     
+    trimmed_probe = {}
+    for mode in list(range(0, 3)):
+        trimmed_probe[f'classifier.{mode}.weight'] = linear_probe_model.state_dict()[f'classifier.{mode}.weight'] # (64, 512)
+    
     if save:
-        to_save_location=f"probes/probe_layer_{target_layer}.pkl"
+        to_save_location=f"probes/probe_layer_{target_layer}_{id}_trimmed.pkl"
         with open(to_save_location, 'wb') as f:
-            torch.save(linear_probe_model, f)
+            torch.save(trimmed_probe, f)
 
 if __name__ == '__main__':
     # test_small_training(save=True)
-
-    full_scale_training(save=True)
-
+    
+    test_diff_probes(6, 6, seed=9999)
+    
+    # full_scale_training(save=True, seed=9999) # 96.76
+    # full_scale_training(save=True, seed=114514) # 97.05
+    # full_scale_training(save=True, seed=20040805) # 96.72
+    
     # test_unpickle()
 
     # test_sae_training(target_layer=6)
     # sae_hyperparameter_sweep(6)
-    full_probe_run(target_layer=6)
-    full_sae_training(target_layer=6, save=True)
+    # full_probe_run(target_layer=6)
+    # full_sae_training(target_layer=6, save=True)
 
     # test_linear_probes(6)
     # for n in range(1, 9):
