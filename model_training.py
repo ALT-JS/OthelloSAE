@@ -153,14 +153,12 @@ def test_diff_probes(othellogpt_layer, probe_layer, seed = 9999):
     eval_corpus="probe_test"
     window_start=1
     window_end=1
-
-    language_model.state_dict()[f'classifier.0.weight'] = probe_model[f'classifier.0.weight']
-    language_model.state_dict()[f'classifier.1.weight'] = probe_model[f'classifier.1.weight']
-    language_model.state_dict()[f'classifier.2.weight'] = probe_model[f'classifier.2.weight']
-    
-    language_model = language_model.to(device)
     
     linear_probe_model=linear_probes.LinearProbe(language_model, layer_num=othellogpt_layer, window_start_trim=window_start, window_end_trim=window_end).cuda()
+    linear_probe_model.classifier[0].weight.data = probe_model[f'classifier.0.weight']
+    linear_probe_model.classifier[1].weight.data = probe_model[f'classifier.1.weight']
+    linear_probe_model.classifier[2].weight.data = probe_model[f'classifier.2.weight']
+    
     train_model(linear_probe_model, train_dataset_type=train_corpus, eval_dataset_type=eval_corpus, num_epochs=num_epochs, report_every_n_steps=report_every_n_steps, batch_size=batch_size, fixed_seed=False)
     
 
@@ -211,7 +209,10 @@ def full_probe_run(target_layer, save=True, trained_model_location="trained_mode
 if __name__ == '__main__':
     # test_small_training(save=True)
     
-    test_diff_probes(6, 6, seed=9999)
+    for gpt_layer in list(range(0, 8)):
+        for probe_layer in ["6"]:
+            print(f"Different probe test on GPT layer {gpt_layer} and Probe layer {probe_layer}:")
+            test_diff_probes(gpt_layer, probe_layer, seed=9999)
     
     # full_scale_training(save=True, seed=9999) # 96.76
     # full_scale_training(save=True, seed=114514) # 97.05
