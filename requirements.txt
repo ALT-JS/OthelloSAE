@@ -6,3 +6,5 @@ torcheval
 transformer_lens==1.2.1
 git+https://github.com/neelnanda-io/neel-plotly
 IPython
+seaborn
+kaleido
