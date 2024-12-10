@@ -11,6 +11,7 @@ Download trimmed trained linear probe weights at https://drive.google.com/drive/
 Download self-trained OthelloGPT weights at https://drive.google.com/drive/folders/1LBu8BivQX1fO2yEV1OZdpNwTEoTUJLlm?usp=sharing, place it in `/`(root folder).
 
 ## 2 Training
+We adopted a lot of code from this piece of research blog: https://www.lesswrong.com/posts/BduCMgmjJnCtc7jKc/research-report-sparse-autoencoders-find-only-9-180-board 
 
 ### 2.1 Train OthelloGPT
 We adopted OthelloGPT training code from existing code base. You can find fucntion `full_scale_training` in `model_training.py`. Change `num_layers` value in the code to train original OthelloGPT(8 layer) or bigger OthelloGPT in our experiment(12 layer).
