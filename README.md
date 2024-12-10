@@ -1,5 +1,5 @@
 # OthelloSAE
-CS194-196 Course Project: How does GPT learn layer by layer
+CS194-196 Course Project
 
 ## 1 Dependencies
 Make sure to install `neel-plotly`. Clone from https://github.com/neelnanda-io/neel-plotly.git, then `cd neel-plotly && pip install -e .`
