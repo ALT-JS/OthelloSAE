@@ -28,7 +28,7 @@ Every block of code in `experiment.ipynb` have explanations about the usage of t
 Every block of code in `cosine_similarity.ipynb` have explanations about the usage of the code. See the `ipynb` file for more details.
 
 ### 3.3 SAE stability
-You can find all functions related to SAE stability in `stability_funcs.py`.
+You can find all functions related to SAE stability in `stability.py`.
 
 Use `all_activations` and `all_boards` from previously ran `save_activations_boards_and_legal_moves` in `analysis.py`.
 
