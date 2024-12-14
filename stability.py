@@ -7,6 +7,8 @@ from utils.game_engine import history_to_legal_moves
 import math
 import matplotlib.pyplot as plt
 from torcheval.metrics import BinaryAUROC
+from matplotlib.colors import ListedColormap, BoundaryNorm
+from collections import OrderedDict
 
 device='cuda' if torch.cuda.is_available() else 'cpu'
 
@@ -19,7 +21,7 @@ def compute_stability_maps(all_boards):
         board = all_boards[state_idx].reshape(8, 8)
         stability_map = np.zeros((8, 8))
         
-        corners = [(0, 0), (0, 7), (7, 0), (7, 7)] # corners always stable
+        corners = [(0, 0), (0, 7), (7, 0), (7, 7)]
 
         for x, y in corners:
             if board[x, y] != 0:
@@ -53,7 +55,7 @@ def compute_stability_maps(all_boards):
         
         stability_maps[state_idx] = torch.tensor(stability_map.flatten(), dtype=torch.int32)
     
-    return stability_maps # same shape as all_boards
+    return stability_maps
 
 
 def calculate_f1_score(tp, fp, tn, fn):
@@ -65,7 +67,6 @@ def index_to_pair(index, original_shape):
     feature_number = index // num_tiles
     tile_number = index % num_tiles
     return (feature_number, tile_number)
-
 
 
 def count_frequencies(iterable):
@@ -117,76 +118,28 @@ def evaluate_all_stability_classification(activations, stability_maps, layer, se
     
     return aurocs, f1_scores, final_dict
 
-def evaluate_all_stability_classification_across_seeds(activations_all, stability_maps, layer):
-    final_aurocs_across_seeds = None
-    final_f1_scores_across_seeds = None
-    final_dict_across_seeds = dict()
 
-    num_seeds = len(activations_all)
-
-    for seed, activations in enumerate(activations_all, start=1):
-        print(f"Processing seed {seed}")
-
-        aurocs, f1_scores, current_dict = evaluate_all_stability_classification(activations, stability_maps, layer, seed)
-
-        if final_aurocs_across_seeds is None:
-            final_aurocs_across_seeds = aurocs.clone()
-            final_f1_scores_across_seeds = f1_scores.clone()
-        else:
-            final_aurocs_across_seeds += aurocs
-            final_f1_scores_across_seeds += f1_scores
-
-        for feature, tile_dict in current_dict.items():
-            if feature not in final_dict_across_seeds:
-                final_dict_across_seeds[feature] = {}
-
-            for tile, auroc_value in tile_dict.items():
-                if tile not in final_dict_across_seeds[feature]:
-                    final_dict_across_seeds[feature][tile] = auroc_value
-                else:
-                    final_dict_across_seeds[feature][tile] += auroc_value
-
-    final_aurocs_across_seeds /= num_seeds
-    final_f1_scores_across_seeds /= num_seeds
-
-    averaged_dict = {
-        feature: {
-            tile: auroc_value / num_seeds
-            for tile, auroc_value in tile_dict.items()
-        }
-        for feature, tile_dict in final_dict_across_seeds.items()
-    }
-
-    torch.save(final_aurocs_across_seeds, f"analysis_results/dictionaries/contents_aurocs_layer{layer}.pkl")
-    torch.save(final_f1_scores_across_seeds, f"analysis_results/dictionaries/contents_f1_scores_layer{layer}.pkl")
-    torch.save(averaged_dict, f"analysis_results/dictionaries/final_dict_layer{layer}.pkl")
-
-    print(f"Averaged results saved for layer {layer}")
-
-
-def find_top_aurocs_contents(layer):
-    with open(f"analysis_results/dictionaries/contents_aurocs_layer{layer}.pkl", 'rb') as f:
+def find_top_aurocs_contents(layer, seed):
+    with open(f"analysis_results/layer_{layer}/contents_aurocs_layer{layer}_seed{seed}.pkl", 'rb') as f:
         aurocs = torch.load(f)
 
     top_values, top_indices = torch.topk(aurocs.flatten(), k=50)
 
     top_locations = [index_to_pair(idx.item(), aurocs.shape) for idx in top_indices]
 
-    print("(Feature_number, tile_number), AUROC:")
     for (feature_number, tile_number), auroc in zip(top_locations, top_values):
         print(f"({feature_number}, {tile_number}), {auroc:.4f}")
 
     return top_locations, top_values
 
 
-def compare_top_features_stability(layer, auroc_threshold):
-    top_locations, top_values = find_top_aurocs_contents(layer)
+def compare_top_features_stability(layer, seed, auroc_threshold):
+    top_locations, top_values = find_top_aurocs_contents_individual(layer, seed)
 
     tile_numbers = [tile_number for (feature_number, tile_number), auroc in zip(top_locations, top_values) if auroc >= auroc_threshold]
     print(tile_numbers)
 
     counts = count_frequencies(tile_numbers)
-    print("\n".join(f"{pos}: {freq}" for pos, freq in sorted(counts.items(), key=lambda x: x[1], reverse=True)))
 
     data_to_plot = torch.zeros((8, 8))
     for tile_number, freq in counts.items():
@@ -194,37 +147,40 @@ def compare_top_features_stability(layer, auroc_threshold):
         col = tile_number % 8
         data_to_plot[row][col] = freq
 
+    colors = ["#440154", "#30678D", "#35B778", "#FDE724", "#ffccb3"]
+    cmap = ListedColormap(colors)
+    bounds = [-0.5, 0.5, 1.5, 2.5, 3.5, 4.5]
+    norm = BoundaryNorm(bounds, cmap.N)
+
     fig, ax = plt.subplots()
-    im = ax.imshow(data_to_plot)
+    im = ax.imshow(data_to_plot, cmap=cmap, norm=norm)
 
     ax.set_xticks(range(8), labels=list("ABCDEFGH"))
     ax.set_yticks(range(8), labels=range(1, 9))
 
     for i in range(8):
         for j in range(8):
-            text = ax.text(j, i, int(data_to_plot[i, j]), ha="center", va="center", color="w")
+            freq = int(data_to_plot[i, j])
+            text = ax.text(j, i, freq, ha="center", va="center", color="white")
 
-    ax.set_title(f"Frequency of Top Features Predicting Stability for Layer {layer}")
+    ax.set_title(f"Frequency of Top Features Predicting Stability for Layer {layer} | Seed {seed}")
     fig.tight_layout()
     plt.show()
-    plt.savefig(f"analysis_results/figures/feature_frequencies_stability_layer{layer}.png")
     plt.close()
 
+def get_tile_feature_map_for_seed(layer, seed, threshold):
+    """
+    Given a layer, a seed, and a threshold, return a dictionary mapping:
+    tile_number -> list_of_features that surpass the given AUROC threshold.
+    """
+    aurocs = torch.load(f"analysis_results/layer_{layer}/contents_aurocs_layer{layer}_seed{seed}.pkl")
 
-def save_activations_boards_and_legal_moves(sae_location="saes/sae_layer_6.pkl", eval_dataset_type="probe_test", offset=0, save_directory="analysis_results", layer=1, seed=1):
-    torch.manual_seed(1)
-    with open(sae_location, 'rb') as f:
-        sae=torch.load(f, map_location=device)
-    test_dataloader=iter(get_dataloader(eval_dataset_type, window_length=sae.window_length, batch_size=10))
-    activations=[]
-    boards=[]
-    legal_moves=[]
-    for test_input, test_labels in tqdm(test_dataloader):
-        (reconstruction,hidden_layer,reconstruction_loss, sparsity_loss, normalized_logits), total_loss=sae(test_input, None)
-        activations.append(hidden_layer)
-        boards.append(sae.trim_to_window(test_labels, offset=offset)) # index n is the board state after before move n+start_window_length
-        legal_moves.append(sae.trim_to_window(history_to_legal_moves(test_input.cpu()), offset=offset)) #index in are the legal moves on turn n+1+start_window_length
-    all_activations=torch.cat(activations).flatten(end_dim=-2) # shape (dw,f), where d= dataset size (2000), w=trimmed window length (52), f=num_features (1024)
-    
-    with open(f"{save_directory}/layer_{layer}/activations_layer{layer}_seed{seed}.pkl", 'wb') as f:
-        torch.save(all_activations, f)
+    num_tiles = aurocs.shape[1]
+    tile_to_features = {tile_idx: [] for tile_idx in range(num_tiles)}
+
+    for feature_idx in range(aurocs.shape[0]):
+        for tile_idx in range(num_tiles):
+            if aurocs[feature_idx, tile_idx].item() >= threshold:
+                tile_to_features[tile_idx].append(feature_idx)
+
+    return tile_to_features

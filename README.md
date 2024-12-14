@@ -30,13 +30,12 @@ Every block of code in `cosine_similarity.ipynb` have explanations about the usa
 ### 3.3 SAE stability
 You can find all functions related to SAE stability in `stability_funcs.py`.
 
-`save_activations_boards_and_legal_moves`: Get activations for a specific layer and save it as a `.pkl` file. (This part is the same for tile color, functionality might be repetitive.)
+Use `all_activations` and `all_boards` from previously ran `save_activations_boards_and_legal_moves` in `analysis.py`.
 
-`compute_stability_maps`: Get stability maps for stability classifications.
+`compute_stability_maps`: Get stability maps for stability classifications using `all_boards`.
 
+`evaluate_all_stability_classification`: You can get AUROCs of a specific layer and seed from the activations and the stability maps.
 
-`evaluate_all_stability_classification`: You can get AUROCs of a specific layer and a specific seed from the activations and the stability maps.
+`compare_top_features_stability`: Get visualizations of top features predicting stability frequency with a specific layer, seed, and AUROC threshold as inputs.
 
-`compare_top_features_stability`: Get visualizations of top features predicting stability frequency with a specific layer and AUROC threshold as input.
-
-Our usage: First run `save_activations_boards_and_legal_moves` to get activations for your specific layer. Pass `all_boards` into `compute_stability_maps` to get `stability_maps`. Run `evaluate_all_stability_classification` if you’re doing one seed by passing in activations, stability_maps, layer, seed or `evaluate_all_stability_classification_across_seeds` if you wanna do all seeds. Finally run `compare_top_features_stability` with a specific layer and AUROC threshold to get visualizations.
+Our usage: First run `save_activations_boards_and_legal_moves` to get activations for your specific layer if you have not done so already. Pass `all_boards` into `compute_stability_maps` to get `stability_maps`. Run `evaluate_all_stability_classification` if you’re doing one seed by passing in activations, stability_maps, layer, seed. Finally run `compare_top_features_stability` with a specific layer, seed, and AUROC threshold to get a visualization.
