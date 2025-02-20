@@ -1,6 +1,8 @@
 # OthelloSAE
 CS194-196 Course Project
 
+Update: We have our work posted on arxiv! Link: https://arxiv.org/pdf/2501.07108
+
 ## 1 Dependencies
 Make sure to install `neel-plotly`. Clone from https://github.com/neelnanda-io/neel-plotly.git, then `cd neel-plotly && pip install -e .`
 
